@@ -1,5 +1,5 @@
 import {
-  sb, rpc, h, $, toast, dialog, konfirmasi, tanggal, jam, durasi, relatif, layarLogin,
+  sb, rpc, h, $, toast, dialog, konfirmasi, tanggal, jam, durasi, relatif, layarLogin, rapikanUrl,
   konfigTerisi, layarKonfigKosong, teksKaya,
 } from './common.js';
 import { renderSoal, NAMA_TIPE, ringkasJawaban } from './soal.js';
@@ -27,7 +27,8 @@ const TAB = [
 async function mulai() {
   if (!konfigTerisi()) return layarKonfigKosong(app);
   const { data } = await sb.auth.getSession();
-  if (!data.session) return layarLogin(app, { judul: 'Admin ujian', sub: NAMA_APLIKASI, onMasuk: setelahMasuk });
+  if (!data.session) return layarLogin(app, { judul: 'Admin ujian', sub: NAMA_APLIKASI });
+  rapikanUrl();
   setelahMasuk();
 }
 
@@ -37,6 +38,7 @@ async function setelahMasuk() {
     const { data } = await sb.auth.getUser();
     app.replaceChildren(h('div.halaman-tengah', h('div.kartu',
       h('h1', 'Akun ini bukan admin'),
+      h('p', 'Masuk sebagai: ', h('strong', data.user?.email || '–')),
       h('p', 'Untuk menjadikan akun ini admin, isi dulu identitas di halaman peserta, lalu jalankan perintah berikut di Supabase > SQL Editor:'),
       h('pre.kode', `update public.profiles set role = 'admin'\nwhere id = '${data.user?.id}';`),
       h('div.baris-aksi',

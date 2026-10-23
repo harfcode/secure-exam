@@ -1,6 +1,6 @@
 import {
   sb, rpc, h, $, toast, dialog, konfirmasi, idPerangkat, simpanLokal, bacaLokal, tanggal, durasi,
-  tunda, GalatUjian, layarLogin, konfigTerisi, layarKonfigKosong, teksKaya,
+  tunda, GalatUjian, layarLogin, rapikanUrl, konfigTerisi, layarKonfigKosong, teksKaya,
 } from './common.js';
 import { renderSoal, terisi, NAMA_TIPE } from './soal.js';
 import { Pengawas, cekPeramban, cekLayarTunggal, NAMA_PELANGGARAN } from './pengawas.js';
@@ -14,19 +14,9 @@ let selisihWaktu = 0; // server - lokal (ms)
 // ====================================================================== awal
 async function mulai() {
   if (!konfigTerisi()) return layarKonfigKosong(app);
-  sb.auth.onAuthStateChange(async (ev) => {
-    if (ev === 'PASSWORD_RECOVERY') {
-      const baru = h('input', { type: 'password', minLength: 8, autocomplete: 'new-password' });
-      const ok = await dialog({ judul: 'Atur kata sandi baru', isi: h('div.form-kolom', h('label', 'Kata sandi baru (min. 8 karakter)'), baru),
-        tombol: [{ teks: 'Simpan', nilai: true, gaya: 'utama' }] });
-      if (ok && baru.value.length >= 8) {
-        const { error } = await sb.auth.updateUser({ password: baru.value });
-        toast(error ? error.message : 'Kata sandi diperbarui.', error ? 'bahaya' : 'ok');
-      }
-    }
-  });
   const { data } = await sb.auth.getSession();
-  if (!data.session) return layarLogin(app, { judul: NAMA_APLIKASI, sub: 'Masuk dengan akun yang Anda daftarkan.', onMasuk: setelahMasuk });
+  if (!data.session) return layarLogin(app, { judul: NAMA_APLIKASI, sub: 'Masuk untuk mengikuti ujian.' });
+  rapikanUrl();
   setelahMasuk();
 }
 
@@ -57,13 +47,16 @@ function galatUmum(e) {
 }
 
 // ====================================================================== profil
-function layarProfil() {
+let emailSaya = null;
+async function layarProfil() {
+  emailSaya = (await sb.auth.getUser()).data.user?.email;
   const nim = h('input#f-nim', { required: true, inputMode: 'text', autocomplete: 'off', maxLength: 30 });
   const nama = h('input#f-nama', { required: true, autocomplete: 'name', maxLength: 100 });
   const pesan = h('p.form-pesan', { role: 'alert' });
   const form = h('form.kartu.form-login',
     h('h1', 'Lengkapi identitas'),
     h('p.redup', 'NIM dan nama akan tercetak pada lembar ujian dan tidak bisa Anda ubah sendiri. Pastikan benar.'),
+    h('p.kecil', 'Akun Google: ', h('strong', emailSaya || '–'), ' · ', h('button.tautan', { type: 'button', onclick: keluar }, 'ganti akun')),
     h('label', { for: 'f-nim' }, 'NIM'), nim,
     h('label', { for: 'f-nama' }, 'Nama lengkap'), nama,
     pesan,
@@ -80,6 +73,7 @@ function layarProfil() {
   };
   app.replaceChildren(h('div.halaman-tengah', form));
   nim.focus();
+  sb.auth.getUser().then(({ data }) => { const n = data.user?.user_metadata?.full_name; if (n && !nama.value) nama.value = n; });
 }
 
 // ====================================================================== daftar ujian

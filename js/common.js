@@ -137,58 +137,37 @@ export function konfigTerisi() {
   return !/XXXXXXXX|ISI_ANON_KEY/.test(SUPABASE_URL + SUPABASE_ANON_KEY);
 }
 
-/** Layar login/daftar bersama (peserta & admin) */
-export function layarLogin(wadah, { judul, sub, onMasuk }) {
-  let mode = 'masuk';
+/** Layar login bersama (peserta & admin) — masuk dengan akun Google */
+export function layarLogin(wadah, { judul, sub }) {
   const pesan = h('p.form-pesan', { role: 'alert' });
-  const email = h('input', { type: 'email', id: 'f-email', autocomplete: 'email', required: true });
-  const sandi = h('input', { type: 'password', id: 'f-sandi', autocomplete: 'current-password', required: true, minLength: 8 });
-  const tombol = h('button.btn.btn-utama.btn-penuh', { type: 'submit' }, 'Masuk');
-  const ganti = h('button.tautan', { type: 'button' }, 'Belum punya akun? Daftar');
-  const lupa = h('button.tautan', { type: 'button' }, 'Lupa kata sandi');
-  const form = h('form.kartu.form-login', { novalidate: true },
+  // galat dari Google/Supabase dikembalikan lewat URL
+  const q = new URLSearchParams(location.search + '&' + location.hash.slice(1));
+  if (q.get('error_description')) pesan.textContent = 'Gagal masuk: ' + q.get('error_description').replace(/\+/g, ' ');
+  const tombol = h('button.btn.btn-google.btn-penuh', { type: 'button' },
+    h('span.google-logo', { 'aria-hidden': 'true', html: LOGO_GOOGLE }), 'Masuk dengan Google');
+  tombol.onclick = async () => {
+    tombol.disabled = true; pesan.textContent = '';
+    const kembali = location.origin + location.pathname;
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: kembali, queryParams: { prompt: 'select_account' } },
+    });
+    if (error) { pesan.textContent = error.message; tombol.disabled = false; }
+  };
+  wadah.replaceChildren(h('div.halaman-tengah', h('div.kartu.form-login',
     h('h1.login-judul', judul), sub ? h('p.redup', sub) : null,
-    h('label', { for: 'f-email' }, 'Email'), email,
-    h('label', { for: 'f-sandi' }, 'Kata sandi'), sandi,
-    pesan, tombol, h('div.login-tautan', ganti, lupa));
+    tombol, pesan,
+    h('p.redup.kecil', 'Gunakan akun Google kampus Anda. Saat pertama masuk, Anda akan diminta mengisi NIM dan nama.'))));
+  tombol.focus();
+}
 
-  ganti.onclick = () => {
-    mode = mode === 'masuk' ? 'daftar' : 'masuk';
-    tombol.textContent = mode === 'masuk' ? 'Masuk' : 'Buat akun';
-    ganti.textContent = mode === 'masuk' ? 'Belum punya akun? Daftar' : 'Sudah punya akun? Masuk';
-    sandi.autocomplete = mode === 'masuk' ? 'current-password' : 'new-password';
-    pesan.textContent = '';
-  };
-  lupa.onclick = async () => {
-    if (!email.value) { pesan.textContent = 'Isi email Anda dulu, lalu klik "Lupa kata sandi".'; return; }
-    const { error } = await sb.auth.resetPasswordForEmail(email.value.trim(), { redirectTo: location.href.split('#')[0] });
-    pesan.className = 'form-pesan ' + (error ? '' : 'ok');
-    pesan.textContent = error ? error.message : 'Tautan atur ulang kata sandi sudah dikirim ke email Anda.';
-  };
-  form.onsubmit = async ev => {
-    ev.preventDefault();
-    pesan.className = 'form-pesan'; pesan.textContent = '';
-    if (!email.value || sandi.value.length < 8) { pesan.textContent = 'Isi email dan kata sandi (minimal 8 karakter).'; return; }
-    tombol.disabled = true;
-    try {
-      if (mode === 'masuk') {
-        const { error } = await sb.auth.signInWithPassword({ email: email.value.trim(), password: sandi.value });
-        if (error) throw error;
-        onMasuk();
-      } else {
-        const { data, error } = await sb.auth.signUp({ email: email.value.trim(), password: sandi.value,
-          options: { emailRedirectTo: location.href.split('#')[0] } });
-        if (error) throw error;
-        if (data.session) onMasuk();
-        else { pesan.className = 'form-pesan ok'; pesan.textContent = 'Akun dibuat. Buka email Anda untuk konfirmasi, lalu masuk.'; ganti.click(); }
-      }
-    } catch (e) {
-      pesan.textContent = /Invalid login/i.test(e.message) ? 'Email atau kata sandi salah.'
-        : /confirm/i.test(e.message) ? 'Email belum dikonfirmasi. Buka tautan di email Anda.' : e.message;
-    } finally { tombol.disabled = false; }
-  };
-  wadah.replaceChildren(h('div.halaman-tengah', form));
-  email.focus();
+const LOGO_GOOGLE = '<svg viewBox="0 0 48 48" width="20" height="20"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
+
+/** Bersihkan sisa token/galat OAuth dari bilah alamat */
+export function rapikanUrl() {
+  if (location.hash.includes('access_token') || location.hash.includes('error') || location.search.includes('code=') || location.search.includes('error')) {
+    history.replaceState(null, '', location.origin + location.pathname);
+  }
 }
 
 export function layarKonfigKosong(wadah) {
