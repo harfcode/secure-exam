@@ -126,6 +126,11 @@ legend { font-weight: 700; padding: 0 .4rem; }
 .login-judul::before { content: ""; width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--ljk); background: radial-gradient(circle, var(--grafit) 0 45%, transparent 47%); flex: none; }
 .login-tautan { display: flex; justify-content: space-between; margin-top: .6rem; font-size: .9rem; }
 
+/* tombol Google */
+.btn-google { background: var(--lembar); border-color: var(--garis-kuat); padding: .85em 1.1em; font-size: 1rem; margin: .8rem 0 .2rem; }
+.btn-google:not(:disabled):hover { border-color: var(--grafit); background: var(--kertas); }
+.google-logo { display: inline-flex; }
+
 /* lencana */
 .lencana {
   display: inline-block; padding: .2em .6em; border-radius: 999px; font-size: .78rem; font-weight: 700;
